@@ -1,8 +1,7 @@
 {
     "name": "Old Colored Keycards",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "main": "src/mod.js",
-    "isBundleMod": false,
     "license": "MIT",
     "author": "Fums",
     "sptVersion": "~3.10",

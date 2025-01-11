@@ -1,8 +1,10 @@
-"use strict";
+const fs = require("node:fs");
+const path = require("node:path");
 
-class OldColoredKeycards {
-    // Load configuration file
-    CFG = require("../config/config.json");
+class Mod {
+    static container;
+    static configPath = path.resolve(__dirname, "../config/config.json");
+    static originalPrices;
 
     constructor() {
         this.keycardIDs = {
@@ -15,41 +17,65 @@ class OldColoredKeycards {
         };
     }
 
-    postDBLoad(container) {
-        const logger = container.resolve("WinstonLogger");
-        const database = container.resolve("DatabaseServer").getTables();
+    async postDBLoadAsync(container) {
+        Mod.container = container;
+        const logger = Mod.container.resolve("WinstonLogger");
+        const databaseServer = Mod.container.resolve("DatabaseServer");
+        const database = databaseServer.getTables();
+        const priceTable = database.templates.prices;
         const items = database.templates.items;
-        const config = this.CFG;
 
-        // Log configuration info
-        logger.log(`[OldColoredKeycards] Configuration: ${JSON.stringify(config)}`, "cyan");
+        let successfulChanges = 0;
 
-        let successfulChanges = 0; // Counter for successful changes
+        // Load configuration
+        let config;
+        try {
+            config = JSON.parse(fs.readFileSync(Mod.configPath, "utf-8"));
+        } catch (error) {
+            logger.error(`Failed to load configuration: ${error.message}`);
+            return;
+        }
 
-        // Apply customizations to each keycard
-        Object.entries(this.keycardIDs).forEach(([id, name]) => {
-            if (items[id]) {
-                if (config.infiniteUse) {
-                    // Set infinite use by modifying MaximumNumberOfUsage
-                    items[id]._props.MaximumNumberOfUsage = 0; // makes it infinite
-                    successfulChanges++;
-                } else {
-                    // Set custom maximum number of uses
-                    items[id]._props.MaximumNumberOfUsage = config.customUses || 100;
-                    successfulChanges++;
+        // Check if price updates are enabled in config
+        if (config.updatePrices) {
+            // Apply price updates
+            if (config.prices) {
+                Mod.originalPrices = structuredClone(priceTable);
+
+                for (const [itemId, newPrice] of Object.entries(config.prices)) {
+                    if (!priceTable[itemId]) {
+                        logger.warn(`Item ID ${itemId} not found in price table. Skipping.`);
+                        continue;
+                    }
+                    priceTable[itemId] = newPrice;
+                    logger.info(`[OldColoredKeycards] Updated price for item ${itemId} to ${newPrice}.`);
                 }
             } else {
-                logger.log(`[OldColoredKeycards] Keycard ${name} with ID ${id} not found in the database`, "yellow");
+                logger.warn("No prices specified in the configuration file.");
+            }
+        } else {
+            logger.info("[OldColoredKeycards] Price updates are disabled in the configuration.", "yellow");
+        }
+
+        // Customize keycard properties
+        Object.entries(this.keycardIDs).forEach(([id, name]) => {
+            if (items[id]) {
+                const keycardProps = items[id]._props;
+                if (config.infiniteUse) {
+                    keycardProps.MaximumNumberOfUsage = 0; // Infinite use
+                } else {
+                    keycardProps.MaximumNumberOfUsage = config.customUses || 40; // Custom use limit
+                }
+                successfulChanges++;
+            } else {
+                logger.warn(`[OldColoredKeycards] Keycard ${name} with ID ${id} not found in the database.`);
             }
         });
 
-        // Log a single message for successful changes
         if (successfulChanges > 0) {
-            logger.log(`[OldColoredKeycards] Successfully modified ${successfulChanges} keycards.`, "green");
+            logger.log(`[OldColoredKeycards] Successfully customized ${successfulChanges} keycards.`, "green");
         }
-
-        logger.log("[OldColoredKeycards] Keycard customization complete!", "cyan");
     }
 }
 
-module.exports = { mod: new OldColoredKeycards() };
+module.exports = { mod: new Mod() };

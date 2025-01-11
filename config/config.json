@@ -1,4 +1,14 @@
 {
     "customUses": 40,
-    "infiniteUse": true
+    "infiniteUse": true,
+	"updatePrices": true,
+    "debugMode": false,
+    "prices": {
+        "5c1d0c5f86f7744bb2683cf0": 6100000,
+        "5c1d0efb86f7744baf2e7b7b": 11300000,
+        "5c1d0dc586f7744baf2e7b79": 11500000,
+        "5c1d0f4986f7744bb01837fa": 1650000,
+        "5c1e495a86f7743109743dfb": 4000000,
+        "5c1d0d6d86f7744bb2683e1f": 2300000
+    }
 }
